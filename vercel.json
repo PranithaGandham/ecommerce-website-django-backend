@@ -2,7 +2,7 @@
     "builds":[{
         "src": "backend/wsgi.py",
         "use": "@vercel/python",
-        "config": {"maxLabdaSize": "15mb" , "runtime":"python3.11.0"}
+        "config": {"maxLabdaSize": "15mb" , "runtime":"python3.9"}
     }],
     "routes":[
         {
