@@ -166,7 +166,7 @@ def password_reset_request(request):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         
         # Create password reset link
-        reset_link = f"https://otakuhouse.vercel.app/#/passwordreset/{uid}/{token}"
+        reset_link = f"https://otaka.vercel.app/#/passwordreset/{uid}/{token}"
         
         # Send email
         subject = "Password Reset Request"
