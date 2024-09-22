@@ -66,58 +66,70 @@ def generate_invoice_pdf(order):
     buffer.seek(0)
     return buffer.getvalue()
 
+from django.db import transaction
+import logging
+
+logger = logging.getLogger(__name__)
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def addOrderItems(request):
     user = request.user
     data = request.data
-    print(data)
+    logger.info(f"Received order data: {data}")
+
     orderItems = data['orderItems']
 
-    if orderItems and len(orderItems) == 0:
+    if not orderItems:
         return Response({'detail': 'No Order Items', "status": status.HTTP_400_BAD_REQUEST})
-    else:
-        # (1) Create Order
-        order = Order.objects.create(
-            user=user,
-            paymentMethod=data['paymentMethod'],
-            taxPrice=data['taxPrice'],
-            shippingPrice=data['shippingPrice'],
-            totalPrice=data['totalPrice'],
-        )
 
-        # (2) Create Shipping Address
-
-        shipping = ShippingAddress.objects.create(
-            order=order,
-            address=data['shippingAddress']['address'],
-            city=data['shippingAddress']['city'],
-            postalCode=data['shippingAddress']['postalCode'],
-            country=data['shippingAddress']['country'],
-        )
-
-        # (3) Create order items
-
-        for i in orderItems:
-            product = Product.objects.get(_id=i['product'])
-
-            item = OrderItem.objects.create(
-                product=product,
-                order=order,
-                name=product.name,
-                qty=i['qty'],
-                price=i['price'],
-                image=product.image.url,
+    try:
+        with transaction.atomic():
+            # (1) Create Order
+            logger.info("Creating order")
+            order = Order.objects.create(
+                user=user,
+                paymentMethod=data['paymentMethod'],
+                taxPrice=data['taxPrice'],
+                shippingPrice=data['shippingPrice'],
+                totalPrice=data['totalPrice'],
             )
 
-            # (4) Update Stock
+            # (2) Create Shipping Address
+            logger.info("Creating shipping address")
+            ShippingAddress.objects.create(
+                order=order,
+                address=data['shippingAddress']['address'],
+                city=data['shippingAddress']['city'],
+                postalCode=data['shippingAddress']['postalCode'],
+                country=data['shippingAddress']['country'],
+            )
 
-            product.countInStock -= item.qty
-            product.save()
+            # (3) Create order items and update stock
+            for i in orderItems:
+                logger.info(f"Processing order item: {i}")
+                product = Product.objects.select_for_update().get(_id=i['product'])
+
+                OrderItem.objects.create(
+                    product=product,
+                    order=order,
+                    name=product.name,
+                    qty=i['qty'],
+                    price=i['price'],
+                    image=product.image.url,
+                )
+
+                # (4) Update Stock
+                product.countInStock -= i['qty']
+                product.save()
 
         serializer = OrderSerializer(order, many=False)
+        logger.info("Order created successfully")
         return Response(serializer.data)
 
+    except Exception as e:
+        logger.error(f"Error creating order: {str(e)}")
+        return Response({'detail': str(e), "status": status.HTTP_400_BAD_REQUEST})
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
