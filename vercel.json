@@ -1,13 +1,17 @@
 {
     "builds":[{
-        "src": "backend/wsgi.py",
-        "use": "@vercel/python",
-        "config": {"maxLabdaSize": "15mb" , "runtime":"python3.9"}
+      "src": "backend/wsgi.py",
+      "use": "@vercel/python",
+      "config": {"maxLambdaSize": "15mb" , "runtime":"python3.9"}
     }],
     "routes":[
-        {
-            "src":"/(.*)",
-            "dest":"backend/wsgi.py"
-        }
+      {
+        "src":"/media/(.*)",
+        "dest":"/media/$1"
+      },
+      {
+        "src":"/(.*)",
+        "dest":"backend/wsgi.py"
+      }
     ]
-}
+  }
